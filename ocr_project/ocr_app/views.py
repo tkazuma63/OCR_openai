@@ -6,7 +6,11 @@ from PIL import Image
 import openai
 from django.conf import settings
 
-openai.api_key = settings.OPENAI_API_KEY
+from openai import OpenAI
+client = OpenAI(api_key = settings.OPENAI_API_KEY)
+
+# Tesseractの実行可能ファイルパスを設定
+pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'  # windowsの場合
 
 # Create your views here.
 
@@ -18,12 +22,21 @@ def upload_document(request):
             img = Image.open(document.image.path)
             text = pytesseract.image_to_string(img, lang='jpn')
 
-            response = openai.Completion.create(
-                engine="gpt-4o",
-                prompt=f"以下のテキストを解析してください:\n\n{text}",
-                max_tokens=500
-            )
-            analysis = response.choices[0].text.strip()
+            response = client.chat.completions.create(
+				model="gpt-4o",
+				messages=[
+					{
+						"role": "system",
+						"content": "以下のテキストを解析してください:"
+					},
+					{
+						"role": "user",
+						"content": text
+					}
+				],
+				max_tokens=500
+			)
+            analysis = response.choices[0].message
 
             return render(request, 'ocr_app/result.html', {'text': text, 'analysis': analysis})
     else:
